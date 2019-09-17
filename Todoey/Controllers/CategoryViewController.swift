@@ -7,12 +7,13 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CategoryViewController: UITableViewController {
 
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
-    var categoriesArray = [Category]()
+    let realm = try! Realm()
+    
+    var categoriesArray : Results<Category>?
     override func viewDidLoad() {
         super.viewDidLoad()
         loadCategories()
@@ -26,11 +27,10 @@ class CategoryViewController: UITableViewController {
         let alert = UIAlertController(title: "Add new Category", message: "", preferredStyle: .alert)
         let action = UIAlertAction(title: "Add categoty", style: .default) { (action) in
             
-            let newCategory = Category(context: self.context)
+            let newCategory = Category()
             print(textField.text!)
             newCategory.name = textField.text!
-            self.categoriesArray.append(newCategory)
-            self.saveCategories()
+            self.save(category: newCategory)
             self.tableView.reloadData()
             
         }
@@ -46,12 +46,12 @@ class CategoryViewController: UITableViewController {
     
     //MARK : - Table view datasoucre methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-       return categoriesArray.count
+       return categoriesArray?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell",for: indexPath)
-        cell.textLabel?.text = categoriesArray[indexPath.row].name
+        cell.textLabel?.text = categoriesArray?[indexPath.row].name ?? "No categories added yet"
         return cell
     }
     
@@ -64,18 +64,20 @@ class CategoryViewController: UITableViewController {
         let destination = segue.destination as! TodoListViewController
         if let indexPath = tableView.indexPathForSelectedRow
         {
-            destination.selectedCategory = self.categoriesArray[indexPath.row]
+            destination.selectedCategory = self.categoriesArray?[indexPath.row]
             
         }
         
     }
     //MARK: - Data Manipulation methods
     
-    func saveCategories()
+    func save(category: Category )
     {
         do
         {
-            try context.save()
+            try realm.write {
+                try realm.add(category)
+            }
         }
         catch
         {
@@ -83,16 +85,10 @@ class CategoryViewController: UITableViewController {
         }
     }
     
-    func loadCategories(with request: NSFetchRequest<Category> = Category.fetchRequest())
+    func loadCategories()
     {
-        do
-        {
-            try categoriesArray = context.fetch(request)
-        }
-        catch
-        {
-            print("Error in loading categories \(error)")
-        }
+        categoriesArray = realm.objects(Category.self)
+        tableView.reloadData()
     }
 
     //MARK: - TableView Delegate methods
